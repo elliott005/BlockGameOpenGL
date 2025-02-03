@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.11.35219.272
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BlockGame", "BlockGame\BlockGame.vcxproj", "{D49CC0DC-CF63-47B8-A405-FB037AE12DAD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D49CC0DC-CF63-47B8-A405-FB037AE12DAD}.Debug|x64.ActiveCfg = Debug|x64
+		{D49CC0DC-CF63-47B8-A405-FB037AE12DAD}.Debug|x64.Build.0 = Debug|x64
+		{D49CC0DC-CF63-47B8-A405-FB037AE12DAD}.Debug|x86.ActiveCfg = Debug|Win32
+		{D49CC0DC-CF63-47B8-A405-FB037AE12DAD}.Debug|x86.Build.0 = Debug|Win32
+		{D49CC0DC-CF63-47B8-A405-FB037AE12DAD}.Release|x64.ActiveCfg = Release|x64
+		{D49CC0DC-CF63-47B8-A405-FB037AE12DAD}.Release|x64.Build.0 = Release|x64
+		{D49CC0DC-CF63-47B8-A405-FB037AE12DAD}.Release|x86.ActiveCfg = Release|Win32
+		{D49CC0DC-CF63-47B8-A405-FB037AE12DAD}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {D3475733-F20A-4968-AD72-24F59ED4D825}
+	EndGlobalSection
+EndGlobal
