@@ -9,7 +9,7 @@ Player::Player(float x, float y, float z, float rx, float ry, float rz, GLFWwind
 	rotation.z = rz;
 	worldUp = glm::vec3(0, 1, 0);
 
-	projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+	projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 200.0f);
 	for (Shader sh : shaders) {
 		sh.setMat4("projection", projection);
 	}
@@ -27,10 +27,10 @@ void Player::update(GLFWwindow* window, float deltaTime) {
 	handleCamera(window);
 }
 
-void Player::updateShader(std::vector<Shader> shaders) {
+void Player::updateShader(std::vector<Shader*> shaders) {
 	view = glm::lookAt(position, position + front, up);
-	for (Shader sh : shaders) {
-		sh.setMat4("view", view);
+	for (int i = 0; i < shaders.size(); i++) {
+		(*shaders[i]).setMat4("view", view);
 	}
 }
 
@@ -73,10 +73,10 @@ void Player::handleMovement(GLFWwindow* window, float deltaTime) {
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
 		position += right * speed * deltaTime;
 	}
-	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+	if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
 		position -= worldUp * speed * deltaTime;
 	}
-	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
+	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
 		position += worldUp * speed * deltaTime;
 	}
 	if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS) {

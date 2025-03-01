@@ -15,7 +15,7 @@ public:
 	Player(float x, float y, float z, float rx, float ry, float rz, GLFWwindow* window, const unsigned int SCR_WIDTH, const unsigned int SCR_HEIGHT, std::vector<Shader> shaders);
 
 	void update(GLFWwindow* window, float deltaTime);
-	void updateShader(std::vector<Shader> shaders);
+	void updateShader(std::vector<Shader*> shaders);
 
 	glm::vec3 position;
 	glm::vec3 rotation;

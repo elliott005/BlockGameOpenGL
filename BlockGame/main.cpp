@@ -5,6 +5,9 @@
 #include <vector>
 #include <filesystem> 
 
+#include <Windows.h>
+
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
@@ -18,8 +21,8 @@
 #include "Cube.hpp"
 #include "World.hpp"
 
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
+const unsigned int SCR_WIDTH = 1200;
+const unsigned int SCR_HEIGHT = 800;
 
 int main(){
 	Application game;
@@ -39,26 +42,11 @@ int main(){
 	Shader defaultShader("defaultShader.vs", "defaultShader.fs");
 	defaultShader.use();
 
-	unsigned int VBO, VAO;
-	glGenVertexArrays(1, &VAO);
-	glGenBuffers(1, &VBO);
-
-	glBindVertexArray(VAO);
-
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	//printf("%i\n", sizeof(float) * 36 * 3);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 36 * 5, Cube::vertices, GL_STATIC_DRAW);
-
-	// position attribute
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-	// texture coord attribute
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(1);
-
 	Player player(10.0f, 10.0f, 10.0f, 0.0f, 0.0f, 0.0f, game.window, SCR_WIDTH, SCR_HEIGHT, { defaultShader });
 
+	double startTime = glfwGetTime();
 	World world;
+	printf("startup time: %f\n", glfwGetTime() - startTime);
 
 	// load and create a texture 
 	// -------------------------
@@ -123,19 +111,15 @@ int main(){
 
 		defaultShader.use();
 
-		player.updateShader({ defaultShader });
+		player.updateShader({ &defaultShader });
 
-		glBindVertexArray(VAO);
-		world.draw(defaultShader, player.position, player.front);
+		world.draw(&defaultShader, player.position, player.front);
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
 		glfwSwapBuffers(game.window);
 		glfwPollEvents();
 	}
-
-	glDeleteVertexArrays(1, &VAO);
-	glDeleteBuffers(1, &VBO);
 
 	glfwTerminate();
 	return 0;

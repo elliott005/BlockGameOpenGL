@@ -7,16 +7,28 @@ World::World() {
 
 	float heightPower = 2.0;
 
+    //std::vector<glm::vec4> chunkData;
+
 	for (int chunkX = 0; chunkX < worldSize; chunkX++) {
 		for (int chunkZ = 0; chunkZ < worldSize; chunkZ++) {
+            //chunkData.push_back(glm::vec4(chunkX * Chunk::chunkSize, 0.0f, chunkZ * Chunk::chunkSize, 0.0f));
             chunks.push_back(Chunk(chunkX * Chunk::chunkSize, chunkZ * Chunk::chunkSize, noise));
 		}
 	}
+
+    /*glGenBuffers(1, &SSBO);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, chunkData.size() * sizeof(glm::vec4), &chunkData[0], GL_DYNAMIC_DRAW);
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, SSBO);*/
+
+    //glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
-void World::draw(Shader sh, glm::vec3 playerPosition, glm::vec3 playerFront) {
-	for (Chunk chunk : chunks) {
-		chunk.draw(sh, playerPosition, playerFront);
+void World::draw(Shader* sh, glm::vec3 playerPosition, glm::vec3 playerFront) {
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO);
+    for (int i = 0; i < chunks.size(); i++) {
+		chunks[i].draw(sh, playerPosition, playerFront);
 	}
 }
 
@@ -30,8 +42,11 @@ Chunk::Chunk(int chunkX, int chunkZ, FastNoiseLite noise) {
         for (int y = 0; y < chunkHeight; y++) {
             cubes[blockX].push_back({});
             for (int blockZ = 0; blockZ < chunkSize; blockZ++) {
-                float noiseValue = 1 - noise.GetNoise((float)(chunkX + blockX), (float)(chunkZ + blockZ));
-                noiseValue *= 5.0;
+                float noiseValue = noise.GetNoise((float)(chunkX + blockX), (float)(chunkZ + blockZ));
+                noiseValue = (noiseValue + 1) / 2.0f;
+                noiseValue *= chunkHeight / 8.0f;
+                noiseValue = std::pow(noiseValue, 2.5);
+                noiseValue += chunkHeight / 10;
                 if (y < noiseValue) {
                     cubes[blockX][y].push_back(Cube(blockX, y, blockZ, BlockTypes::dirt, false));
                 }
@@ -41,22 +56,6 @@ Chunk::Chunk(int chunkX, int chunkZ, FastNoiseLite noise) {
             }
         }
     }
-    /*for (int y = 0; y < chunkSize; y++) {
-        cubes[0][y][0].isAir = true;
-    }
-    for (int x = 0; x < chunkSize / 2; x++) {
-        cubes[x][chunkSize - 1][1].isAir = true;
-    }
-    for (int x = 0; x < chunkSize; x++) {
-        for (int z = 0; z < chunkSize; z++) {
-            cubes[x][2][z].isAir = true;
-        }
-    }
-    for (int x = 0; x < chunkSize; x++) {
-        for (int z = 0; z < chunkSize; z++) {
-            cubes[x][4][z].isAir = true;
-        }
-    }*/
     
     //printf("values: %i, %i, %i\n", cubes.size(), cubes[0].size(), cubes[0][0].size());
 
@@ -64,6 +63,9 @@ Chunk::Chunk(int chunkX, int chunkZ, FastNoiseLite noise) {
     for (int axis = 0; axis < 3; axis++) {
         //int u = (axis + 1) % 3; // Other two axes
         //int v = (axis + 2) % 3;
+
+        vertices.push_back({});
+        vertices.push_back({});
 
         int chunkSizeX = chunkSize;
         int chunkSizeY = chunkHeight;
@@ -101,7 +103,8 @@ Chunk::Chunk(int chunkX, int chunkZ, FastNoiseLite noise) {
                     }
                 }
             }
-            greedyMeshing(mask, d, axis, 0, chunkSizeX, chunkSizeY, chunkSizeZ);
+            
+            greedyMeshing(mask, d, axis, 1, chunkSizeX, chunkSizeY, chunkSizeZ);
 
             // --------------------------------------------------------------------------------------------
 
@@ -124,7 +127,8 @@ Chunk::Chunk(int chunkX, int chunkZ, FastNoiseLite noise) {
                     }
                 }
             }
-            greedyMeshing(mask, d, axis, -1, chunkSizeX, chunkSizeY, chunkSizeZ);
+
+            greedyMeshing(mask, d, axis, 0, chunkSizeX, chunkSizeY, chunkSizeZ);
         }
     }
     //printf("size: %i\n", vertices.size());
@@ -132,32 +136,65 @@ Chunk::Chunk(int chunkX, int chunkZ, FastNoiseLite noise) {
         printf("%f\n", vert);
     }*/
 
-	glGenVertexArrays(1, &VAO);
-	glGenBuffers(1, &VBO);
-	glBindVertexArray(VAO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    int idx = 0;
+    for (std::vector<uint8_t> sideVertices : vertices) {
+        glGenVertexArrays(1, &VAOs[idx]);
+	    glGenBuffers(1, &VBOs[idx]);
+	    glBindVertexArray(VAOs[idx]);
+	    glBindBuffer(GL_ARRAY_BUFFER, VBOs[idx]);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(uint8_t) * sideVertices.size(), sideVertices.data(), GL_STATIC_DRAW);
+	    // position attribute
+	    glVertexAttribPointer(0, 3, GL_UNSIGNED_BYTE, GL_FALSE, 6 * sizeof(uint8_t), (void*)0);
+	    glEnableVertexAttribArray(0);
+	    // texture coord attribute
+	    glVertexAttribPointer(1, 2, GL_UNSIGNED_BYTE, GL_FALSE, 6 * sizeof(uint8_t), (void*)(3 * sizeof(uint8_t)));
+	    glEnableVertexAttribArray(1);
+        glVertexAttribIPointer(2, 1, GL_UNSIGNED_BYTE, 6 * sizeof(uint8_t), (void*)(5 * sizeof(uint8_t)));
+        glEnableVertexAttribArray(2);
 
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
-	// position attribute
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-	// texture coord attribute
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(1);
+        idx++;
+    }
+	
+
+    /*glGenBuffers(1, &EBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(int) * indices.size(), indices.data(), GL_STATIC_DRAW);*/
 }
 
-void Chunk::draw(Shader sh, glm::vec3 playerPosition, glm::vec3 playerFront) {
+void Chunk::draw(Shader* sh, glm::vec3 playerPosition, glm::vec3 playerFront) {
     //printf("%f, %f, %f, v2: %f, %f, %f, angle: %f\n", position.x, position.y, position.z, playerPosition.x, playerPosition.y, playerPosition.z, vecAngle(position - playerPosition, playerPosition + playerFront));
-    if (std::abs(vecAngle(glm::normalize(position - playerPosition), playerFront)) > glm::radians(90.0f))
-        return;
+    glm::vec3 playerDir = glm::normalize(position - playerPosition);
+    /*bool isInChunk = vecLength(position - playerPosition) < chunkSize * 2;
+    if (std::abs(vecAngle(playerDir , playerFront)) > glm::radians(90.0f) and not isInChunk)
+        return;*/
 
-    glBindVertexArray(VAO);
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::translate(model, position);
+    (*sh).setMat4("model", model);
 
-    sh.setMat4("model", model);
+    glm::vec3 playerDirHorizontal = glm::vec3(playerDir.x, 0, playerDir.z);
+    int toCull = -1;
+    /*if (not isInChunk) {
+        if (vecAngle(playerDirHorizontal, glm::vec3(-1, 0, 0)) < glm::radians(45.0f))
+            toCull = 0;
+        if (vecAngle(playerDirHorizontal, glm::vec3(1, 0, 0)) < glm::radians(45.0f))
+            toCull = 1;
+        if (vecAngle(playerDirHorizontal, glm::vec3(0, 0, -1)) < glm::radians(45.0f))
+            toCull = 4;
+        if (vecAngle(playerDirHorizontal, glm::vec3(0, 0, 1)) < glm::radians(45.0f))
+            toCull = 5;
+    }*/
 
-    glDrawArrays(GL_TRIANGLES, 0, vertices.size() / 3);
+    for (int i = 0; i < 6; i++) {
+        if (i == toCull) {
+            continue;
+        }
+        
+        glBindVertexArray(VAOs[i]);
+        glDrawArrays(GL_TRIANGLES, 0, vertices[i].size() / 6);
+    }
+    /*glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);*/
 }
 
 std::tuple<int, Cube> Chunk::getBlockAt(int x, int y, int z, int axis) {
@@ -179,10 +216,11 @@ std::tuple<int, Cube> Chunk::getBlockAt(int x, int y, int z, int axis) {
     }
 }
 
-void Chunk::addQuadToMesh(int x, int y, int z, int width, int height, int axis, glm::vec2 material) {
+void Chunk::addQuadToMesh(int x, int y, int z, int width, int height, int axis, int back, glm::vec2 material) {
     // Generate the four corner vertices of the quad
     glm::vec3 pos[4];
     glm::vec2 texPos[4];
+    int normal = 2;
     if (axis == 0) { // X-axis
         /*pos[0] = glm::vec3(z, x, y);
         pos[1] = glm::vec3(z, x + width, y);
@@ -199,6 +237,8 @@ void Chunk::addQuadToMesh(int x, int y, int z, int width, int height, int axis, 
         texPos[3] = glm::vec2(0, height);
     }
     else if (axis == 1) { // Y-axis
+        normal = back;
+
         pos[0] = glm::vec3(x, z, y);
         pos[1] = glm::vec3(x + width, z, y);
         pos[2] = glm::vec3(x + width, z, y + height);
@@ -225,38 +265,59 @@ void Chunk::addQuadToMesh(int x, int y, int z, int width, int height, int axis, 
         texPos[i] += material;
     }*/
 
-    // Push the quad vertices
-    vertices.push_back((float)pos[0].x);
-    vertices.push_back((float)pos[0].y);
-    vertices.push_back((float)pos[0].z);
-    vertices.push_back((float)texPos[0].x);
-    vertices.push_back((float)texPos[0].y);
-    vertices.push_back((float)pos[1].x);
-    vertices.push_back((float)pos[1].y);
-    vertices.push_back((float)pos[1].z);
-    vertices.push_back((float)texPos[1].x);
-    vertices.push_back((float)texPos[1].y);
-    vertices.push_back((float)pos[2].x);
-    vertices.push_back((float)pos[2].y);
-    vertices.push_back((float)pos[2].z);
-    vertices.push_back((float)texPos[2].x);
-    vertices.push_back((float)texPos[2].y);
+    /*int indicesSizeStart = indices.size();
+    indices.push_back(indicesSizeStart + 0);
+    indices.push_back(indicesSizeStart + 1);
+    indices.push_back(indicesSizeStart + 2);
+    indices.push_back(indicesSizeStart + 0);
+    indices.push_back(indicesSizeStart + 2);
+    indices.push_back(indicesSizeStart + 3);*/
 
-    vertices.push_back((float)pos[0].x);
-    vertices.push_back((float)pos[0].y);
-    vertices.push_back((float)pos[0].z);
-    vertices.push_back((float)texPos[0].x);
-    vertices.push_back((float)texPos[0].y);
-    vertices.push_back((float)pos[2].x);
-    vertices.push_back((float)pos[2].y);
-    vertices.push_back((float)pos[2].z);
-    vertices.push_back((float)texPos[2].x);
-    vertices.push_back((float)texPos[2].y);
-    vertices.push_back((float)pos[3].x);
+    //printf("%i\n", (uint8_t)normal);
+
+    // Push the quad vertices
+    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[0].x);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[0].y);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[0].z);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[0].x);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[0].y);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)normal);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[1].x);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[1].y);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[1].z);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[1].x);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[1].y);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)normal);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[2].x);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[2].y);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[2].z);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[2].x);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[2].y);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)normal);
+    /*vertices.push_back((float)pos[3].x);
     vertices.push_back((float)pos[3].y);
     vertices.push_back((float)pos[3].z);
     vertices.push_back((float)texPos[3].x);
-    vertices.push_back((float)texPos[3].y);
+    vertices.push_back((float)texPos[3].y);*/
+
+    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[0].x);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[0].y);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[0].z);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[0].x);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[0].y);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)normal);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[2].x);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[2].y);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[2].z);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[2].x);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[2].y);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)normal);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[3].x);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[3].y);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[3].z);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[3].x);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[3].y);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)normal);
 }
 
 void Chunk::greedyMeshing(std::vector<std::vector<std::tuple<int, Cube>>>& mask, int d, int axis, int back, int chunkSizeX, int chunkSizeY, int chunkSizeZ) {
@@ -291,7 +352,7 @@ void Chunk::greedyMeshing(std::vector<std::vector<std::tuple<int, Cube>>>& mask,
                     std::get<0>(mask[i + x][j + y]) = -1;
 
             // Add quad to mesh
-            addQuadToMesh(i - 1, j - 1, d + back, width, height, axis, material);
+            addQuadToMesh(i, j, d + back, width, height, axis, back, material);
         }
     }
 }
