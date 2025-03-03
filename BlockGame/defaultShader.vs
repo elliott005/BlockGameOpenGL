@@ -11,6 +11,8 @@ uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 
+//uniform int dummy;
+
 //layout(binding = 3) readonly buffer ssbo1 {
 //    mat4 modelMatrices[];
 //};

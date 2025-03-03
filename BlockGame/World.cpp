@@ -2,7 +2,7 @@
 
 World::World() {
 	FastNoiseLite noise;
-	noise.SetFrequency(0.010f);
+	noise.SetFrequency(0.005f);
 	noise.SetFractalType(FastNoiseLite::FractalType_FBm);
 
 	float heightPower = 2.0;
@@ -36,6 +36,9 @@ Chunk::Chunk(int chunkX, int chunkZ, FastNoiseLite noise) {
     position.x = chunkX;
     position.z = chunkZ;
     position.y = 0;
+    center.x = chunkX + chunkSize / 2;
+    center.z = chunkZ + chunkSize / 2;
+    center.y = 0;
 
     for (int blockX = 0; blockX < chunkSize; blockX++) {
         cubes.push_back({});
@@ -43,10 +46,13 @@ Chunk::Chunk(int chunkX, int chunkZ, FastNoiseLite noise) {
             cubes[blockX].push_back({});
             for (int blockZ = 0; blockZ < chunkSize; blockZ++) {
                 float noiseValue = noise.GetNoise((float)(chunkX + blockX), (float)(chunkZ + blockZ));
-                noiseValue = (noiseValue + 1) / 2.0f;
+               /* noiseValue = (noiseValue + 1) / 2.0f;
                 noiseValue *= chunkHeight / 8.0f;
-                noiseValue = std::pow(noiseValue, 2.5);
-                noiseValue += chunkHeight / 10;
+                noiseValue += 2;
+                noiseValue = std::pow(noiseValue, 5);*/
+                noiseValue = 1.f + -1 * std::abs(noiseValue);
+                noiseValue = std::pow(noiseValue, 2);
+                noiseValue *= chunkHeight;
                 if (y < noiseValue) {
                     cubes[blockX][y].push_back(Cube(blockX, y, blockZ, BlockTypes::dirt, false));
                 }
@@ -200,17 +206,17 @@ void Chunk::draw(Shader* sh, glm::vec3 playerPosition, glm::vec3 playerFront) {
 std::tuple<int, Cube> Chunk::getBlockAt(int x, int y, int z, int axis) {
     // Convert axis-based indexing into 3D coordinates
     if (axis == 0) { // X-axis
-        if (0 <= x and x <= cubes.size() and 0 <= y and y <= cubes[x].size() and 0 <= z and z <= cubes[x][y].size())
+        if (0 <= x and x < cubes.size() and 0 <= y and y < cubes[x].size() and 0 <= z and z < cubes[x][y].size())
             return std::make_tuple(1, cubes[x][y][z]);
         return std::make_tuple(0, Cube(0, 0, 0, glm::vec2(0, 0), true));
     }
     else if (axis == 1) { // Y-axis
-        if (0 <= x and x <= cubes.size() and 0 <= z and z <= cubes[x].size() and 0 <= y and y <= cubes[x][z].size())
+        if (0 <= x and x < cubes.size() and 0 <= z and z < cubes[x].size() and 0 <= y and y < cubes[x][z].size())
             return std::make_tuple(1, cubes[x][z][y]);
         return std::make_tuple(0, Cube(0, 0, 0, glm::vec2(0, 0), true));
     }
     else { // Z-axis
-        if (0 <= z and z <= cubes.size() and 0 <= y and y <= cubes[z].size() and 0 <= x and x <= cubes[z][y].size())
+        if (0 <= z and z < cubes.size() and 0 <= y and y < cubes[z].size() and 0 <= x and x < cubes[z][y].size())
             return std::make_tuple(1, cubes[z][y][x]);
         return std::make_tuple(0, Cube(0, 0, 0, glm::vec2(0, 0), true));
     }

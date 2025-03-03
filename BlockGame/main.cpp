@@ -99,7 +99,7 @@ int main(){
 			glfwSetWindowShouldClose(game.window, true);
 		}
 
-		player.update(game.window, deltaTime);
+		player.update(game.window, deltaTime, &world);
 
 		// render
 		// ------
