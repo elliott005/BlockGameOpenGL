@@ -32,7 +32,7 @@ void World::draw(Shader* sh, glm::vec3 playerPosition, glm::vec3 playerFront) {
 	}
 }
 
-Chunk::Chunk(int chunkX, int chunkZ, FastNoiseLite noise) {
+Chunk::Chunk(int chunkX, int chunkZ, const FastNoiseLite& noise) {
     position.x = chunkX;
     position.z = chunkZ;
     position.y = 0;
@@ -40,24 +40,37 @@ Chunk::Chunk(int chunkX, int chunkZ, FastNoiseLite noise) {
     center.z = chunkZ + chunkSize / 2;
     center.y = 0;
 
+    for (int i = 0; i < chunkSize; i++) {
+        for (int j = 0; j < chunkSize; j++) {
+            noiseArray[i][j] = -1;
+        }
+    }
+    //std::fill(noiseArray, noiseArray + chunkSize * chunkSize, -1);
+
+    //printf("%i, %i\n", noiseArray[0][0], noiseArray[1][1]);
+
     for (int blockX = 0; blockX < chunkSize; blockX++) {
         cubes.push_back({});
         for (int y = 0; y < chunkHeight; y++) {
             cubes[blockX].push_back({});
             for (int blockZ = 0; blockZ < chunkSize; blockZ++) {
-                float noiseValue = noise.GetNoise((float)(chunkX + blockX), (float)(chunkZ + blockZ));
-               /* noiseValue = (noiseValue + 1) / 2.0f;
-                noiseValue *= chunkHeight / 8.0f;
-                noiseValue += 2;
-                noiseValue = std::pow(noiseValue, 5);*/
-                noiseValue = 1.f + -1 * std::abs(noiseValue);
-                noiseValue = std::pow(noiseValue, 2);
-                noiseValue *= chunkHeight;
+                float noiseValue = getHeightAtPoint(noise, (float)(chunkX + blockX), (float)(chunkZ + blockZ));
+                float averageHeightDiff = 0;
+                for (int i = 0; i < 4; i++) {
+                    averageHeightDiff += std::abs(noiseValue - getHeightAtPoint(noise, chunkX + blockX + sides[i][0], chunkZ + blockZ + sides[i][1]));
+                }
+                averageHeightDiff /= 4.0;
+
+                int blockType = BlockTypes::dirt;
+                if (averageHeightDiff > 0.75) {
+                    blockType = BlockTypes::stone;
+                }
+
                 if (y < noiseValue) {
-                    cubes[blockX][y].push_back(Cube(blockX, y, blockZ, BlockTypes::dirt, false));
+                    cubes[blockX][y].push_back(Cube(blockX, y, blockZ, blockType, false));
                 }
                 else {
-                    cubes[blockX][y].push_back(Cube(blockX, y, blockZ, BlockTypes::dirt, true));
+                    cubes[blockX][y].push_back(Cube(blockX, y, blockZ, blockType, true));
                 }
             }
         }
@@ -83,7 +96,7 @@ Chunk::Chunk(int chunkX, int chunkZ, FastNoiseLite noise) {
         //printf("axis: %i\n", axis);
 
         // Temporary 2D mask array
-        std::vector<std::vector<std::tuple<int, Cube>>> mask(chunkSizeX, std::vector<std::tuple<int, Cube>>(chunkSizeY, std::make_tuple(-1, Cube(0, 0, 0, glm::vec2(0, 0), true))));
+        std::vector<std::vector<std::tuple<int, Cube>>> mask(chunkSizeX, std::vector<std::tuple<int, Cube>>(chunkSizeY, std::make_tuple(-1, Cube(0, 0, 0, 0, true))));
         // Iterate through the chunk along the main axis
         for (int d = 0; d < chunkSizeZ; d++) {
             //printf("d: %i\n", d);
@@ -150,13 +163,15 @@ Chunk::Chunk(int chunkX, int chunkZ, FastNoiseLite noise) {
 	    glBindBuffer(GL_ARRAY_BUFFER, VBOs[idx]);
         glBufferData(GL_ARRAY_BUFFER, sizeof(uint8_t) * sideVertices.size(), sideVertices.data(), GL_STATIC_DRAW);
 	    // position attribute
-	    glVertexAttribPointer(0, 3, GL_UNSIGNED_BYTE, GL_FALSE, 6 * sizeof(uint8_t), (void*)0);
+	    glVertexAttribPointer(0, 3, GL_UNSIGNED_BYTE, GL_FALSE, 7 * sizeof(uint8_t), (void*)0);
 	    glEnableVertexAttribArray(0);
 	    // texture coord attribute
-	    glVertexAttribPointer(1, 2, GL_UNSIGNED_BYTE, GL_FALSE, 6 * sizeof(uint8_t), (void*)(3 * sizeof(uint8_t)));
+	    glVertexAttribPointer(1, 2, GL_UNSIGNED_BYTE, GL_FALSE, 7 * sizeof(uint8_t), (void*)(3 * sizeof(uint8_t)));
 	    glEnableVertexAttribArray(1);
-        glVertexAttribIPointer(2, 1, GL_UNSIGNED_BYTE, 6 * sizeof(uint8_t), (void*)(5 * sizeof(uint8_t)));
+        glVertexAttribIPointer(2, 1, GL_UNSIGNED_BYTE, 7 * sizeof(uint8_t), (void*)(5 * sizeof(uint8_t)));
         glEnableVertexAttribArray(2);
+        glVertexAttribIPointer(3, 1, GL_UNSIGNED_BYTE, 7 * sizeof(uint8_t), (void*)(6 * sizeof(uint8_t)));
+        glEnableVertexAttribArray(3);
 
         idx++;
     }
@@ -208,21 +223,21 @@ std::tuple<int, Cube> Chunk::getBlockAt(int x, int y, int z, int axis) {
     if (axis == 0) { // X-axis
         if (0 <= x and x < cubes.size() and 0 <= y and y < cubes[x].size() and 0 <= z and z < cubes[x][y].size())
             return std::make_tuple(1, cubes[x][y][z]);
-        return std::make_tuple(0, Cube(0, 0, 0, glm::vec2(0, 0), true));
+        return std::make_tuple(0, Cube(0, 0, 0, 0, true));
     }
     else if (axis == 1) { // Y-axis
         if (0 <= x and x < cubes.size() and 0 <= z and z < cubes[x].size() and 0 <= y and y < cubes[x][z].size())
             return std::make_tuple(1, cubes[x][z][y]);
-        return std::make_tuple(0, Cube(0, 0, 0, glm::vec2(0, 0), true));
+        return std::make_tuple(0, Cube(0, 0, 0, 0, true));
     }
     else { // Z-axis
         if (0 <= z and z < cubes.size() and 0 <= y and y < cubes[z].size() and 0 <= x and x < cubes[z][y].size())
             return std::make_tuple(1, cubes[z][y][x]);
-        return std::make_tuple(0, Cube(0, 0, 0, glm::vec2(0, 0), true));
+        return std::make_tuple(0, Cube(0, 0, 0, 0, true));
     }
 }
 
-void Chunk::addQuadToMesh(int x, int y, int z, int width, int height, int axis, int back, glm::vec2 material) {
+void Chunk::addQuadToMesh(int x, int y, int z, int width, int height, int axis, int back, int material) {
     // Generate the four corner vertices of the quad
     glm::vec3 pos[4];
     glm::vec2 texPos[4];
@@ -288,18 +303,21 @@ void Chunk::addQuadToMesh(int x, int y, int z, int width, int height, int axis, 
     vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[0].x);
     vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[0].y);
     vertices[axis * 2 - back + 1].push_back((uint8_t)normal);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)material);
     vertices[axis * 2 - back + 1].push_back((uint8_t)pos[1].x);
     vertices[axis * 2 - back + 1].push_back((uint8_t)pos[1].y);
     vertices[axis * 2 - back + 1].push_back((uint8_t)pos[1].z);
     vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[1].x);
     vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[1].y);
     vertices[axis * 2 - back + 1].push_back((uint8_t)normal);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)material);
     vertices[axis * 2 - back + 1].push_back((uint8_t)pos[2].x);
     vertices[axis * 2 - back + 1].push_back((uint8_t)pos[2].y);
     vertices[axis * 2 - back + 1].push_back((uint8_t)pos[2].z);
     vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[2].x);
     vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[2].y);
     vertices[axis * 2 - back + 1].push_back((uint8_t)normal);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)material);
     /*vertices.push_back((float)pos[3].x);
     vertices.push_back((float)pos[3].y);
     vertices.push_back((float)pos[3].z);
@@ -312,18 +330,21 @@ void Chunk::addQuadToMesh(int x, int y, int z, int width, int height, int axis, 
     vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[0].x);
     vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[0].y);
     vertices[axis * 2 - back + 1].push_back((uint8_t)normal);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)material);
     vertices[axis * 2 - back + 1].push_back((uint8_t)pos[2].x);
     vertices[axis * 2 - back + 1].push_back((uint8_t)pos[2].y);
     vertices[axis * 2 - back + 1].push_back((uint8_t)pos[2].z);
     vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[2].x);
     vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[2].y);
     vertices[axis * 2 - back + 1].push_back((uint8_t)normal);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)material);
     vertices[axis * 2 - back + 1].push_back((uint8_t)pos[3].x);
     vertices[axis * 2 - back + 1].push_back((uint8_t)pos[3].y);
     vertices[axis * 2 - back + 1].push_back((uint8_t)pos[3].z);
     vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[3].x);
     vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[3].y);
     vertices[axis * 2 - back + 1].push_back((uint8_t)normal);
+    vertices[axis * 2 - back + 1].push_back((uint8_t)material);
 }
 
 void Chunk::greedyMeshing(std::vector<std::vector<std::tuple<int, Cube>>>& mask, int d, int axis, int back, int chunkSizeX, int chunkSizeY, int chunkSizeZ) {
@@ -332,7 +353,7 @@ void Chunk::greedyMeshing(std::vector<std::vector<std::tuple<int, Cube>>>& mask,
         for (int j = 0; j < chunkSizeY; j++) {
             if (std::get<0>(mask[i][j]) == -1 or std::get<1>(mask[i][j]).isAir) continue;
 
-            glm::vec2 material = std::get<1>(mask[i][j]).type;
+            int material = std::get<1>(mask[i][j]).type;
             int width = 1, height = 1;
 
             // Expand width
@@ -371,6 +392,31 @@ bool Chunk::compareQuads(int x0, int y0, int w0, int h0, int x1, int y1, int w1,
 	if (w0 != w1)
 		return w0 > w1;
 	return h0 >= h1;
+}
+
+float Chunk::getHeightAtPoint(const FastNoiseLite& noise, int x, int z) {
+    float noiseValue;
+    if (x < 0 or x >= chunkSize or z < 0 or z >= chunkSize) {
+        noiseValue = noise.GetNoise((float)x, (float)z);
+    }
+    else {
+        if (noiseArray[x - (int)position.x][z - (int)position.z] == -1) {
+            noiseValue = noise.GetNoise((float)x, (float)z);
+            noiseArray[x - (int)position.x][z - (int)position.z] = noiseValue;
+        }
+        else {
+            noiseValue = noiseArray[x - (int)position.x][z - (int)position.z];
+        }
+    }
+    
+    /* noiseValue = (noiseValue + 1) / 2.0f;
+     noiseValue *= chunkHeight / 8.0f;
+     noiseValue += 2;
+     noiseValue = std::pow(noiseValue, 5);*/
+    //noiseValue = 1.f + -1 * std::abs(noiseValue);
+    noiseValue = std::pow(noiseValue, 2);
+    noiseValue *= chunkHeight;
+    return noiseValue;
 }
 
 float vecAngle(glm::vec3 v1, glm::vec3 v2) {

@@ -31,12 +31,6 @@ void Player::update(GLFWwindow* window, float deltaTime, World* world) {
 	if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
-	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
-		flying = false;
-	}
-	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
-		flying = true;
-	}
 }
 
 void Player::updateShader(std::vector<Shader*> shaders) {
@@ -74,6 +68,14 @@ void Player::handleCamera(GLFWwindow* window) {
 }
 
 void Player::handleMovement(GLFWwindow* window, float deltaTime, World* world) {
+	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+		flying = false;
+	}
+	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
+		flying = true;
+		velocity.y = 0.0;
+	}
+
 	velocity = glm::vec3(0.0f, velocity.y, 0.0f);
 	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
 		sprinting = true;
@@ -81,6 +83,9 @@ void Player::handleMovement(GLFWwindow* window, float deltaTime, World* world) {
 	float moveSpeed = speed;
 	if (sprinting) {
 		moveSpeed = sprintSpeed;
+	}
+	if (flying) {
+		moveSpeed = flySpeed;
 	}
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
 		velocity += glm::normalize(glm::vec3(front.x, 0.0f, front.z));
@@ -105,10 +110,10 @@ void Player::handleMovement(GLFWwindow* window, float deltaTime, World* world) {
 	
 	if (flying) {
 		if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-			position -= worldUp * moveSpeed * deltaTime;
+			position -= worldUp * verticalFlySpeed * deltaTime;
 		}
 		if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-			position += worldUp * moveSpeed * deltaTime;
+			position += worldUp * verticalFlySpeed * deltaTime;
 		}
 	}
 	else {

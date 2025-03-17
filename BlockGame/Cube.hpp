@@ -10,13 +10,13 @@
 
 class BlockTypes {
 public:
-    static const glm::vec2 stone;
-    static const glm::vec2 dirt;
+    static const int stone;
+    static const int dirt;
 };
 
 class Cube {
 public:
-    Cube(int x, int y, int z, glm::vec2 p_type, bool air);
+    Cube(int x, int y, int z, int p_type, bool air);
 
     void draw(Shader sh);
 
@@ -24,7 +24,7 @@ public:
 
     static const float vertices[];
     
-    glm::vec2 type;
+    int type;
     bool isAir;
 private:
 };

@@ -42,19 +42,20 @@ int main(){
 	Shader defaultShader("defaultShader.vs", "defaultShader.fs");
 	defaultShader.use();
 
-	Player player(10.0f, 10.0f, 10.0f, 0.0f, 0.0f, 0.0f, game.window, SCR_WIDTH, SCR_HEIGHT, { defaultShader });
+	Player player(10.0f, 100.0f, 10.0f, 0.0f, 0.0f, 0.0f, game.window, SCR_WIDTH, SCR_HEIGHT, { defaultShader });
 
 	double startTime = glfwGetTime();
 	World world;
-	printf("startup time: %f\n", glfwGetTime() - startTime);
+	double startupTime = glfwGetTime() - startTime;
+	printf("startup time: %f\n", startupTime);
 
 	// load and create a texture 
 	// -------------------------
-	unsigned int tileSetTex;
+	unsigned int stoneTex;
 	// texture 1
 	// ---------
-	glGenTextures(1, &tileSetTex);
-	glBindTexture(GL_TEXTURE_2D, tileSetTex);
+	glGenTextures(1, &stoneTex);
+	glBindTexture(GL_TEXTURE_2D, stoneTex);
 	// set the texture wrapping parameters
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -76,8 +77,36 @@ int main(){
 	}
 	stbi_image_free(data);
 
+	// load and create a texture 
+	// -------------------------
+	unsigned int dirtTex;
+	// texture 1
+	// ---------
+	glGenTextures(1, &dirtTex);
+	glBindTexture(GL_TEXTURE_2D, dirtTex);
+	// set the texture wrapping parameters
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	// set texture filtering parameters
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	// load image, create texture and generate mipmaps
+	stbi_set_flip_vertically_on_load(true); // tell stb_image.h to flip loaded texture's on the y-axis.
+	data = stbi_load("assets/sprite_068.png", &width, &height, &nrChannels, 0);
+	if (data)
+	{
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+	}
+	else
+	{
+		std::cout << "Failed to load texture" << std::endl;
+	}
+	stbi_image_free(data);
+
 	defaultShader.use();
-	defaultShader.setInt("texture1", 0);
+	defaultShader.setInt("textures[0]", 0);
+	defaultShader.setInt("textures[1]", 1);
 	/*defaultShader.setFloat("numTilesX", 32);
 	defaultShader.setFloat("numTilesY", 32);*/
 
@@ -107,7 +136,9 @@ int main(){
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // also clear the depth buffer now!
 
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, tileSetTex);
+		glBindTexture(GL_TEXTURE_2D, stoneTex);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, dirtTex);
 
 		defaultShader.use();
 
@@ -120,6 +151,8 @@ int main(){
 		glfwSwapBuffers(game.window);
 		glfwPollEvents();
 	}
+
+	printf("startup time: %f\n", startupTime);
 
 	glfwTerminate();
 	return 0;

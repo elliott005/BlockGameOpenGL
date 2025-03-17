@@ -1,6 +1,6 @@
 #include "Cube.hpp"
 
-Cube::Cube(int x, int y, int z, glm::vec2 p_type, bool air) {
+Cube::Cube(int x, int y, int z, int p_type, bool air) {
 	position.x = x;
 	position.y = y;
 	position.z = z;
@@ -13,13 +13,13 @@ void Cube::draw(Shader sh) {
 	model = glm::translate(model, position);
     
 	sh.setMat4("model", model);
-    sh.setVec2("texCoordOffset", type);
+    //sh.setVec2("texCoordOffset", type);
 
 	glDrawArrays(GL_TRIANGLES, 0, 36);
 }
 
-const glm::vec2 BlockTypes::stone(0, 26);
-const glm::vec2 BlockTypes::dirt(0, 25);
+const int BlockTypes::stone(0);
+const int BlockTypes::dirt(1);
 
 
 const float Cube::vertices[] = {

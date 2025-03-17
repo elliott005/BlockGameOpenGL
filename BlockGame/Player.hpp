@@ -41,10 +41,12 @@ private:
 	float mouseSensitivity = 0.1;
 	float maxVerticalRotation = 70.0;
 
-	float speed = 10.0;
-	float sprintSpeed = 15.0;
+	float speed = 7.0;
+	float sprintSpeed = 12.0;
 	float jumpHeight = 20.0;
 	float gravity = 0.7;
+	float verticalFlySpeed = 20.0;
+	float flySpeed = 30.0;
 	
 	bool onGround = false;
 	bool sprinting = false;
