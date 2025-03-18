@@ -17,6 +17,7 @@ public:
 class Cube {
 public:
     Cube(int x, int y, int z, int p_type, bool air);
+    Cube();
 
     void draw(Shader sh);
 

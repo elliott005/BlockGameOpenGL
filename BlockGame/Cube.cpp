@@ -8,6 +8,14 @@ Cube::Cube(int x, int y, int z, int p_type, bool air) {
     isAir = air;
 }
 
+Cube::Cube() {
+    position.x = 0;
+    position.y = 0;
+    position.z = 0;
+    type = 0;
+    isAir = false;
+}
+
 void Cube::draw(Shader sh) {
 	glm::mat4 model = glm::mat4(1.0f);
 	model = glm::translate(model, position);

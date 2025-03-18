@@ -40,8 +40,8 @@ Chunk::Chunk(int chunkX, int chunkZ, const FastNoiseLite& noise) {
     center.z = chunkZ + chunkSize / 2;
     center.y = 0;
 
-    for (int i = 0; i < chunkSize; i++) {
-        for (int j = 0; j < chunkSize; j++) {
+    for (int i = 0; i < chunkSize + 2; i++) {
+        for (int j = 0; j < chunkSize + 2; j++) {
             noiseArray[i][j] = -1;
         }
     }
@@ -50,9 +50,7 @@ Chunk::Chunk(int chunkX, int chunkZ, const FastNoiseLite& noise) {
     //printf("%i, %i\n", noiseArray[0][0], noiseArray[1][1]);
 
     for (int blockX = 0; blockX < chunkSize; blockX++) {
-        cubes.push_back({});
         for (int y = 0; y < chunkHeight; y++) {
-            cubes[blockX].push_back({});
             for (int blockZ = 0; blockZ < chunkSize; blockZ++) {
                 float noiseValue = getHeightAtPoint(noise, (float)(chunkX + blockX), (float)(chunkZ + blockZ));
                 float averageHeightDiff = 0;
@@ -67,10 +65,10 @@ Chunk::Chunk(int chunkX, int chunkZ, const FastNoiseLite& noise) {
                 }
 
                 if (y < noiseValue) {
-                    cubes[blockX][y].push_back(Cube(blockX, y, blockZ, blockType, false));
+                    cubes[blockX][y][blockZ] = Cube(blockX, y, blockZ, blockType, false);
                 }
                 else {
-                    cubes[blockX][y].push_back(Cube(blockX, y, blockZ, blockType, true));
+                    cubes[blockX][y][blockZ] = Cube(blockX, y, blockZ, blockType, true);
                 }
             }
         }
@@ -108,17 +106,19 @@ Chunk::Chunk(int chunkX, int chunkZ, const FastNoiseLite& noise) {
             for (int i = 0; i < chunkSizeX; i++) {
                 for (int j = 0; j < chunkSizeY; j++) {
                     //printf("%i, %i, %i, %i\n", i, j, d, axis);
-                    std::tuple<int, Cube> current = getBlockAt(i, j, d, axis);
+                    Cube current = getBlockAt(i, j, d, axis);
                     //printf("z: %i\n", chunkSizeZ);
                     if (d < chunkSizeZ - 1) {
-                        std::tuple<int, Cube> next = getBlockAt(i, j, d + 1, axis);
+                        Cube next = getBlockAt(i, j, d + 1, axis);
                         // Only store if the face is visible
-                        if ((std::get<0>(current) != 0 and not std::get<1>(current).isAir) != (std::get<0>(next) != 0 and not std::get<1>(next).isAir)) {
-                            mask[i][j] = std::get<0>(current) or not std::get<1>(current).isAir ? current : next;
+                        if (not current.isAir != not next.isAir) {
+                            std::get<1>(mask[i][j]) = not current.isAir ? current : next;
+                            std::get<0>(mask[i][j]) = 1;
                         }
                     }
-                    else if (not std::get<1>(current).isAir) {
-                        mask[i][j] = current;
+                    else if (not current.isAir) {
+                        std::get<1>(mask[i][j]) = current;
+                        std::get<0>(mask[i][j]) = 1;
                     }
                 }
             }
@@ -133,16 +133,18 @@ Chunk::Chunk(int chunkX, int chunkZ, const FastNoiseLite& noise) {
             // Fill mask with visible faces
             for (int i = 0; i < chunkSizeX; i++) {
                 for (int j = 0; j < chunkSizeY; j++) {
-                    std::tuple<int, Cube> current = getBlockAt(i, j, d, axis);
+                    Cube current = getBlockAt(i, j, d, axis);
                    if (d > 0) {
-                        std::tuple<int, Cube> next = getBlockAt(i, j, d - 1, axis);
+                        Cube next = getBlockAt(i, j, d - 1, axis);
                         // Only store if the face is visible
-                        if ((std::get<0>(current) != 0 and not std::get<1>(current).isAir) != (std::get<0>(next) != 0 and not std::get<1>(next).isAir)) {
-                            mask[i][j] = std::get<0>(current) or not std::get<1>(current).isAir ? current : next;
+                        if (not current.isAir != not next.isAir) {
+                            std::get<1>(mask[i][j]) = not current.isAir ? current : next;
+                            std::get<0>(mask[i][j]) = 1;
                         }
                     }
-                    else if (not std::get<1>(current).isAir) {
-                        mask[i][j] = current;
+                    else if (not current.isAir) {
+                       std::get<1>(mask[i][j]) = current;
+                       std::get<0>(mask[i][j]) = 1;
                     }
                 }
             }
@@ -218,22 +220,22 @@ void Chunk::draw(Shader* sh, glm::vec3 playerPosition, glm::vec3 playerFront) {
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);*/
 }
 
-std::tuple<int, Cube> Chunk::getBlockAt(int x, int y, int z, int axis) {
+Cube Chunk::getBlockAt(int x, int y, int z, int axis) {
     // Convert axis-based indexing into 3D coordinates
     if (axis == 0) { // X-axis
-        if (0 <= x and x < cubes.size() and 0 <= y and y < cubes[x].size() and 0 <= z and z < cubes[x][y].size())
-            return std::make_tuple(1, cubes[x][y][z]);
-        return std::make_tuple(0, Cube(0, 0, 0, 0, true));
+        if (0 <= x and x < chunkSize and 0 <= y and y < chunkHeight and 0 <= z and z < chunkSize)
+            return cubes[x][y][z];
+        return Cube(0, 0, 0, 0, true);
     }
     else if (axis == 1) { // Y-axis
-        if (0 <= x and x < cubes.size() and 0 <= z and z < cubes[x].size() and 0 <= y and y < cubes[x][z].size())
-            return std::make_tuple(1, cubes[x][z][y]);
-        return std::make_tuple(0, Cube(0, 0, 0, 0, true));
+        if (0 <= x and x < chunkSize and 0 <= z and z < chunkHeight and 0 <= y and y < chunkSize)
+            return cubes[x][z][y];
+        return Cube(0, 0, 0, 0, true);
     }
     else { // Z-axis
-        if (0 <= z and z < cubes.size() and 0 <= y and y < cubes[z].size() and 0 <= x and x < cubes[z][y].size())
-            return std::make_tuple(1, cubes[z][y][x]);
-        return std::make_tuple(0, Cube(0, 0, 0, 0, true));
+        if (0 <= z and z < chunkSize and 0 <= y and y < chunkHeight and 0 <= x and x < chunkSize)
+            return cubes[z][y][x];
+        return Cube(0, 0, 0, 0, true);
     }
 }
 
@@ -396,17 +398,14 @@ bool Chunk::compareQuads(int x0, int y0, int w0, int h0, int x1, int y1, int w1,
 
 float Chunk::getHeightAtPoint(const FastNoiseLite& noise, int x, int z) {
     float noiseValue;
-    if (x < 0 or x >= chunkSize or z < 0 or z >= chunkSize) {
+    int localX = x - (int)position.x;
+    int localZ = z - (int)position.z;
+    if (noiseArray[localX + 1][localZ + 1] == -1) {
         noiseValue = noise.GetNoise((float)x, (float)z);
+        noiseArray[localX + 1][localZ + 1] = noiseValue;
     }
     else {
-        if (noiseArray[x - (int)position.x][z - (int)position.z] == -1) {
-            noiseValue = noise.GetNoise((float)x, (float)z);
-            noiseArray[x - (int)position.x][z - (int)position.z] = noiseValue;
-        }
-        else {
-            noiseValue = noiseArray[x - (int)position.x][z - (int)position.z];
-        }
+        noiseValue = noiseArray[localX + 1][localZ + 1];
     }
     
     /* noiseValue = (noiseValue + 1) / 2.0f;
