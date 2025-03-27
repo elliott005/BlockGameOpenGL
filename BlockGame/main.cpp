@@ -20,8 +20,8 @@
 #include "Cube.hpp"
 #include "World.hpp"
 
-const unsigned int SCR_WIDTH = 1200;
-const unsigned int SCR_HEIGHT = 800;
+const unsigned int SCR_WIDTH = 1600;
+const unsigned int SCR_HEIGHT = 1000;
 
 int main(){
 	Application game;

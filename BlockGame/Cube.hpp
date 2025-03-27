@@ -19,13 +19,14 @@ public:
     Cube(int x, int y, int z, int p_type, bool air);
     Cube();
 
-    void draw(Shader sh);
+    //void draw(Shader sh);
 
     glm::vec3 position;
 
-    static const float vertices[];
+    //static const float vertices[];
     
     int type;
     bool isAir;
+    bool isProcessed = false;
 private:
 };

@@ -169,8 +169,8 @@ bool Player::canMove(std::vector<Chunk*> nearbyChunks, glm::vec3 pos) {
 					/*printf("%i, %i, %i\n", x, y, z);
 					printf("Chunk: %f, %f\n", chunk->position.x, chunk->position.z);
 					printf("cubes sizes: %i, %i, %i\n", chunk->cubes.size(), chunk->cubes[0].size(), chunk->cubes[0][0].size());*/
-					Cube cubeTuple = chunk->getBlockAt(x, y, z, 0);
-					if (not cubeTuple.isAir) {
+					Cube* cubeTuple = chunk->getBlockAt(x, y, z, 0);
+					if (not cubeTuple->isAir) {
 						return false;
 					}
 				}

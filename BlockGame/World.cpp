@@ -81,9 +81,6 @@ Chunk::Chunk(int chunkX, int chunkZ, const FastNoiseLite& noise) {
         //int u = (axis + 1) % 3; // Other two axes
         //int v = (axis + 2) % 3;
 
-        vertices.push_back({});
-        vertices.push_back({});
-
         int chunkSizeX = chunkSize;
         int chunkSizeY = chunkHeight;
         int chunkSizeZ = chunkSize;
@@ -94,31 +91,31 @@ Chunk::Chunk(int chunkX, int chunkZ, const FastNoiseLite& noise) {
         //printf("axis: %i\n", axis);
 
         // Temporary 2D mask array
-        std::vector<std::vector<std::tuple<int, Cube>>> mask(chunkSizeX, std::vector<std::tuple<int, Cube>>(chunkSizeY, std::make_tuple(-1, Cube(0, 0, 0, 0, true))));
+        std::vector<std::vector<Cube>> mask(chunkSizeX, std::vector<Cube>(chunkSizeY, Cube(0, 0, 0, 0, true)));
         // Iterate through the chunk along the main axis
         for (int d = 0; d < chunkSizeZ; d++) {
             //printf("d: %i\n", d);
             // Reset mask
             for (int i = 0; i < chunkSizeX; i++)
                 for (int j = 0; j < chunkSizeY; j++)
-                    std::get<0>(mask[i][j]) = -1;
+                    mask[i][j].isProcessed = true;
             // Fill mask with visible faces
             for (int i = 0; i < chunkSizeX; i++) {
                 for (int j = 0; j < chunkSizeY; j++) {
                     //printf("%i, %i, %i, %i\n", i, j, d, axis);
-                    Cube current = getBlockAt(i, j, d, axis);
+                    Cube* current = getBlockAt(i, j, d, axis);
                     //printf("z: %i\n", chunkSizeZ);
                     if (d < chunkSizeZ - 1) {
-                        Cube next = getBlockAt(i, j, d + 1, axis);
+                        Cube* next = getBlockAt(i, j, d + 1, axis);
                         // Only store if the face is visible
-                        if (not current.isAir != not next.isAir) {
-                            std::get<1>(mask[i][j]) = not current.isAir ? current : next;
-                            std::get<0>(mask[i][j]) = 1;
+                        if (not current->isAir != not next->isAir) {
+                            mask[i][j] = not current->isAir ? *current : *next;
+                            mask[i][j].isProcessed = false;
                         }
                     }
-                    else if (not current.isAir) {
-                        std::get<1>(mask[i][j]) = current;
-                        std::get<0>(mask[i][j]) = 1;
+                    else if (not current->isAir) {
+                        mask[i][j] = *current;
+                        mask[i][j].isProcessed = false;
                     }
                 }
             }
@@ -129,22 +126,22 @@ Chunk::Chunk(int chunkX, int chunkZ, const FastNoiseLite& noise) {
 
             for (int i = 0; i < chunkSizeX; i++)
                 for (int j = 0; j < chunkSizeY; j++)
-                    std::get<0>(mask[i][j]) = -1;
+                    mask[i][j].isProcessed = true;
             // Fill mask with visible faces
             for (int i = 0; i < chunkSizeX; i++) {
                 for (int j = 0; j < chunkSizeY; j++) {
-                    Cube current = getBlockAt(i, j, d, axis);
+                    Cube* current = getBlockAt(i, j, d, axis);
                    if (d > 0) {
-                        Cube next = getBlockAt(i, j, d - 1, axis);
+                        Cube* next = getBlockAt(i, j, d - 1, axis);
                         // Only store if the face is visible
-                        if (not current.isAir != not next.isAir) {
-                            std::get<1>(mask[i][j]) = not current.isAir ? current : next;
-                            std::get<0>(mask[i][j]) = 1;
+                        if (not current->isAir != not next->isAir) {
+                            mask[i][j] = not current->isAir ? *current : *next;
+                            mask[i][j].isProcessed = false;
                         }
                     }
-                    else if (not current.isAir) {
-                       std::get<1>(mask[i][j]) = current;
-                       std::get<0>(mask[i][j]) = 1;
+                    else if (not current->isAir) {
+                       mask[i][j] = *current;
+                       mask[i][j].isProcessed = false;
                     }
                 }
             }
@@ -157,26 +154,21 @@ Chunk::Chunk(int chunkX, int chunkZ, const FastNoiseLite& noise) {
         printf("%f\n", vert);
     }*/
 
-    int idx = 0;
-    for (std::vector<uint8_t> sideVertices : vertices) {
-        glGenVertexArrays(1, &VAOs[idx]);
-	    glGenBuffers(1, &VBOs[idx]);
-	    glBindVertexArray(VAOs[idx]);
-	    glBindBuffer(GL_ARRAY_BUFFER, VBOs[idx]);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(uint8_t) * sideVertices.size(), sideVertices.data(), GL_STATIC_DRAW);
-	    // position attribute
-	    glVertexAttribPointer(0, 3, GL_UNSIGNED_BYTE, GL_FALSE, 7 * sizeof(uint8_t), (void*)0);
-	    glEnableVertexAttribArray(0);
-	    // texture coord attribute
-	    glVertexAttribPointer(1, 2, GL_UNSIGNED_BYTE, GL_FALSE, 7 * sizeof(uint8_t), (void*)(3 * sizeof(uint8_t)));
-	    glEnableVertexAttribArray(1);
-        glVertexAttribIPointer(2, 1, GL_UNSIGNED_BYTE, 7 * sizeof(uint8_t), (void*)(5 * sizeof(uint8_t)));
-        glEnableVertexAttribArray(2);
-        glVertexAttribIPointer(3, 1, GL_UNSIGNED_BYTE, 7 * sizeof(uint8_t), (void*)(6 * sizeof(uint8_t)));
-        glEnableVertexAttribArray(3);
-
-        idx++;
-    }
+    glGenVertexArrays(1, &VAO);
+	glGenBuffers(1, &VBO);
+	glBindVertexArray(VAO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(uint8_t) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
+	// position attribute
+	glVertexAttribPointer(0, 3, GL_UNSIGNED_BYTE, GL_FALSE, 7 * sizeof(uint8_t), (void*)0);
+	glEnableVertexAttribArray(0);
+	// texture coord attribute
+	glVertexAttribPointer(1, 2, GL_UNSIGNED_BYTE, GL_FALSE, 7 * sizeof(uint8_t), (void*)(3 * sizeof(uint8_t)));
+	glEnableVertexAttribArray(1);
+    glVertexAttribIPointer(2, 1, GL_UNSIGNED_BYTE, 7 * sizeof(uint8_t), (void*)(5 * sizeof(uint8_t)));
+    glEnableVertexAttribArray(2);
+    glVertexAttribIPointer(3, 1, GL_UNSIGNED_BYTE, 7 * sizeof(uint8_t), (void*)(6 * sizeof(uint8_t)));
+    glEnableVertexAttribArray(3);
 	
 
     /*glGenBuffers(1, &EBO);
@@ -194,48 +186,30 @@ void Chunk::draw(Shader* sh, glm::vec3 playerPosition, glm::vec3 playerFront) {
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::translate(model, position);
     (*sh).setMat4("model", model);
-
-    glm::vec3 playerDirHorizontal = glm::vec3(playerDir.x, 0, playerDir.z);
-    int toCull = -1;
-    /*if (not isInChunk) {
-        if (vecAngle(playerDirHorizontal, glm::vec3(-1, 0, 0)) < glm::radians(45.0f))
-            toCull = 0;
-        if (vecAngle(playerDirHorizontal, glm::vec3(1, 0, 0)) < glm::radians(45.0f))
-            toCull = 1;
-        if (vecAngle(playerDirHorizontal, glm::vec3(0, 0, -1)) < glm::radians(45.0f))
-            toCull = 4;
-        if (vecAngle(playerDirHorizontal, glm::vec3(0, 0, 1)) < glm::radians(45.0f))
-            toCull = 5;
-    }*/
-
-    for (int i = 0; i < 6; i++) {
-        if (i == toCull) {
-            continue;
-        }
         
-        glBindVertexArray(VAOs[i]);
-        glDrawArrays(GL_TRIANGLES, 0, vertices[i].size() / 6);
-    }
+    glBindVertexArray(VAO);
+    glDrawArrays(GL_TRIANGLES, 0, vertices.size() / 6);
+
     /*glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);*/
 }
 
-Cube Chunk::getBlockAt(int x, int y, int z, int axis) {
+Cube* Chunk::getBlockAt(int x, int y, int z, int axis) {
     // Convert axis-based indexing into 3D coordinates
     if (axis == 0) { // X-axis
         if (0 <= x and x < chunkSize and 0 <= y and y < chunkHeight and 0 <= z and z < chunkSize)
-            return cubes[x][y][z];
-        return Cube(0, 0, 0, 0, true);
+            return &cubes[x][y][z];
+        return &airCube;
     }
     else if (axis == 1) { // Y-axis
         if (0 <= x and x < chunkSize and 0 <= z and z < chunkHeight and 0 <= y and y < chunkSize)
-            return cubes[x][z][y];
-        return Cube(0, 0, 0, 0, true);
+            return &cubes[x][z][y];
+        return &airCube;
     }
     else { // Z-axis
         if (0 <= z and z < chunkSize and 0 <= y and y < chunkHeight and 0 <= x and x < chunkSize)
-            return cubes[z][y][x];
-        return Cube(0, 0, 0, 0, true);
+            return &cubes[z][y][x];
+        return &airCube;
     }
 }
 
@@ -296,76 +270,73 @@ void Chunk::addQuadToMesh(int x, int y, int z, int width, int height, int axis, 
     indices.push_back(indicesSizeStart + 2);
     indices.push_back(indicesSizeStart + 3);*/
 
-    //printf("%i\n", (uint8_t)normal);
+    //printf("%i\n", (uint8_t)normal
 
     // Push the quad vertices
-    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[0].x);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[0].y);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[0].z);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[0].x);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[0].y);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)normal);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)material);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[1].x);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[1].y);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[1].z);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[1].x);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[1].y);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)normal);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)material);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[2].x);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[2].y);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[2].z);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[2].x);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[2].y);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)normal);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)material);
-    /*vertices.push_back((float)pos[3].x);
-    vertices.push_back((float)pos[3].y);
-    vertices.push_back((float)pos[3].z);
-    vertices.push_back((float)texPos[3].x);
-    vertices.push_back((float)texPos[3].y);*/
+    vertices.insert(vertices.end(), {
+        (uint8_t)pos[0].x,
+        (uint8_t)pos[0].y,
+        (uint8_t)pos[0].z,
+        (uint8_t)texPos[0].x,
+        (uint8_t)texPos[0].y,
+        (uint8_t)normal,
+        (uint8_t)material,
+        (uint8_t)pos[1].x,
+        (uint8_t)pos[1].y,
+        (uint8_t)pos[1].z,
+        (uint8_t)texPos[1].x,
+        (uint8_t)texPos[1].y,
+        (uint8_t)normal,
+        (uint8_t)material,
+        (uint8_t)pos[2].x,
+        (uint8_t)pos[2].y,
+        (uint8_t)pos[2].z,
+        (uint8_t)texPos[2].x,
+        (uint8_t)texPos[2].y,
+        (uint8_t)normal,
+        (uint8_t)material,
 
-    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[0].x);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[0].y);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[0].z);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[0].x);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[0].y);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)normal);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)material);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[2].x);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[2].y);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[2].z);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[2].x);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[2].y);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)normal);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)material);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[3].x);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[3].y);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)pos[3].z);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[3].x);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)texPos[3].y);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)normal);
-    vertices[axis * 2 - back + 1].push_back((uint8_t)material);
+        (uint8_t)pos[0].x,
+        (uint8_t)pos[0].y,
+        (uint8_t)pos[0].z,
+        (uint8_t)texPos[0].x,
+        (uint8_t)texPos[0].y,
+        (uint8_t)normal,
+        (uint8_t)material,
+        (uint8_t)pos[2].x,
+        (uint8_t)pos[2].y,
+        (uint8_t)pos[2].z,
+        (uint8_t)texPos[2].x,
+        (uint8_t)texPos[2].y,
+        (uint8_t)normal,
+        (uint8_t)material,
+        (uint8_t)pos[3].x,
+        (uint8_t)pos[3].y,
+        (uint8_t)pos[3].z,
+        (uint8_t)texPos[3].x,
+        (uint8_t)texPos[3].y,
+        (uint8_t)normal,
+        (uint8_t)material
+    });
 }
 
-void Chunk::greedyMeshing(std::vector<std::vector<std::tuple<int, Cube>>>& mask, int d, int axis, int back, int chunkSizeX, int chunkSizeY, int chunkSizeZ) {
+void Chunk::greedyMeshing(std::vector<std::vector<Cube>>& mask, int d, int axis, int back, int chunkSizeX, int chunkSizeY, int chunkSizeZ) {
     // Apply greedy merging on the mask
     for (int i = 0; i < chunkSizeX; i++) {
         for (int j = 0; j < chunkSizeY; j++) {
-            if (std::get<0>(mask[i][j]) == -1 or std::get<1>(mask[i][j]).isAir) continue;
+            if (mask[i][j].isProcessed or mask[i][j].isAir) continue;
 
-            int material = std::get<1>(mask[i][j]).type;
+            int material = mask[i][j].type;
             int width = 1, height = 1;
 
             // Expand width
-            while (i + width < chunkSizeX and std::get<0>(mask[i + width][j]) != -1 and std::get<1>(mask[i + width][j]).type == material and not std::get<1>(mask[i + width][j]).isAir) width++;
+            while (i + width < chunkSizeX and not mask[i + width][j].isProcessed and mask[i + width][j].type == material and not mask[i + width][j].isAir) width++;
 
             // Expand height
             bool canExpandHeight = true;
             while (j + height < chunkSizeY && canExpandHeight) {
                 for (int k = 0; k < width; k++) {
-                    if (std::get<1>(mask[i + k][j + height]).type != material or std::get<0>(mask[i + k][j + height]) == -1 or std::get<1>(mask[i + k][j + height]).isAir) {
+                    if (mask[i + k][j + height].type != material or mask[i + k][j + height].isProcessed or mask[i + k][j + height].isAir) {
                         canExpandHeight = false;
                         break;
                     }
@@ -378,7 +349,7 @@ void Chunk::greedyMeshing(std::vector<std::vector<std::tuple<int, Cube>>>& mask,
             // Mark these as processed
             for (int x = 0; x < width; x++)
                 for (int y = 0; y < height; y++)
-                    std::get<0>(mask[i + x][j + y]) = -1;
+                    mask[i + x][j + y].isProcessed = true;
 
             // Add quad to mesh
             addQuadToMesh(i, j, d + back, width, height, axis, back, material);
