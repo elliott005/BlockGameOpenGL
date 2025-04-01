@@ -52,4 +52,4 @@ private:
 };
 
 float vecAngle(glm::vec3 v1, glm::vec3 v2);
-float vecLength(glm::vec3 v1);
+float vecLength(const glm::vec3 &v1);

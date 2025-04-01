@@ -9,7 +9,7 @@ Player::Player(float x, float y, float z, float rx, float ry, float rz, GLFWwind
 	rotation.z = rz;
 	worldUp = glm::vec3(0, 1, 0);
 
-	projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
+	projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 2000.0f);
 	for (Shader sh : shaders) {
 		sh.setMat4("projection", projection);
 	}

@@ -158,7 +158,11 @@ Chunk::Chunk(int chunkX, int chunkZ, const FastNoiseLite& noise) {
 	glGenBuffers(1, &VBO);
 	glBindVertexArray(VAO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(uint8_t) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 2 + sizeof(uint8_t) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
+    std::vector<float> posData = { position.x, position.z };
+    /*glm::mat4 model(1.0f);
+    glm::translate(model, position);*/
+    glBufferSubData(GL_ARRAY_BUFFER, sizeof(uint8_t) * vertices.size(), sizeof(float) * 2, posData.data());
 	// position attribute
 	glVertexAttribPointer(0, 3, GL_UNSIGNED_BYTE, GL_FALSE, 7 * sizeof(uint8_t), (void*)0);
 	glEnableVertexAttribArray(0);
@@ -169,6 +173,10 @@ Chunk::Chunk(int chunkX, int chunkZ, const FastNoiseLite& noise) {
     glEnableVertexAttribArray(2);
     glVertexAttribIPointer(3, 1, GL_UNSIGNED_BYTE, 7 * sizeof(uint8_t), (void*)(6 * sizeof(uint8_t)));
     glEnableVertexAttribArray(3);
+
+    glVertexAttribPointer(4, 2, GL_FLOAT, false, sizeof(float) * 2, (void*)(sizeof(uint8_t) * vertices.size()));
+    glEnableVertexAttribArray(4);
+    glVertexAttribDivisor(4, 1);
 	
 
     /*glGenBuffers(1, &EBO);
@@ -182,10 +190,6 @@ void Chunk::draw(Shader* sh, glm::vec3 playerPosition, glm::vec3 playerFront) {
     /*bool isInChunk = vecLength(position - playerPosition) < chunkSize * 2;
     if (std::abs(vecAngle(playerDir , playerFront)) > glm::radians(90.0f) and not isInChunk)
         return;*/
-
-    glm::mat4 model = glm::mat4(1.0f);
-    model = glm::translate(model, position);
-    (*sh).setMat4("model", model);
         
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, vertices.size() / 6);
@@ -395,6 +399,6 @@ float vecAngle(glm::vec3 v1, glm::vec3 v2) {
     }
     return glm::acos(glm::dot(v1, v2) / (vecLength(v1) * vecLength(v2)));
 }
-float vecLength(glm::vec3 v1) {
-    return (std::sqrt(std::pow(v1.x, 2) + std::pow(v1.y, 2) + std::pow(v1.z, 2)));
+float vecLength(const glm::vec3 &v1) {
+    return (std::sqrt(v1.x * v1.x + v1.y * v1.y + v1.z * v1.z));
 }

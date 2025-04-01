@@ -4,12 +4,13 @@ layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec2 aTexCoord;
 layout (location = 2) in int aNormal;
 layout (location = 3) in uint aTex;
+layout (location = 4) in vec2 model;
 
 out vec2 TexCoord;
 flat out uint normal;
 flat out uint texIdx;
 
-uniform mat4 model;
+//uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 
@@ -24,7 +25,7 @@ uniform mat4 projection;
 
 void main()
 {
-    gl_Position = projection * view * model * vec4(aPos.x, aPos.y, aPos.z, 1.0f);
+    gl_Position = projection * view * vec4(aPos.x + model.x, aPos.y, aPos.z + model.y, 1.0f);
     TexCoord = vec2(aTexCoord.x, aTexCoord.y);
     normal = aNormal;
     texIdx = aTex;

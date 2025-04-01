@@ -46,7 +46,7 @@ private:
 	float jumpHeight = 20.0;
 	float gravity = 0.7;
 	float verticalFlySpeed = 20.0;
-	float flySpeed = 30.0;
+	float flySpeed = 50.0;
 	
 	bool onGround = false;
 	bool sprinting = false;
@@ -54,7 +54,7 @@ private:
 	float height = 1.8;
 	float width = 0.4;
 
-	bool flying = false;
+	bool flying = true;
 
 	//std::vector<float> keysPressed;
 };
