@@ -27,7 +27,7 @@ public:
 private:
 	void addQuadToMesh(int x, int y, int z, int width, int height, int axis, int back, int material);
 	bool compareQuads(int x0, int y0, int w0, int h0, int x1, int y1, int w1, int h1);
-	void greedyMeshing(std::vector<std::vector<Cube>>& mask, int d, int axis, int back, int chunkSizeX, int chunkSizeY, int chunkSizeZ);
+	void greedyMeshing(Cube* mask, int d, int axis, int back, int chunkSizeX, int chunkSizeY, int chunkSizeZ);
 	float getHeightAtPoint(const FastNoiseLite& noise, int x, int z);
 
 	float noiseArray[chunkSize + 2][chunkSize + 2];
@@ -47,7 +47,7 @@ public:
 
 	std::vector<Chunk> chunks;
 private:
-	int worldSize = 60;
+	int worldSize = 110;
 	unsigned int SSBO;
 };
 

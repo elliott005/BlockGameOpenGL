@@ -46,7 +46,7 @@ int main(){
 	double startTime = glfwGetTime();
 	World world;
 	double startupTime = glfwGetTime() - startTime;
-	printf("startup time: %f\n", startupTime);
+	printf("startup time: %f\n", startupTime); // 31.7
 
 	// load and create a texture 
 	// -------------------------
