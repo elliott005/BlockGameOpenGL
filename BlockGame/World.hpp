@@ -2,6 +2,8 @@
 
 #include <vector>
 #include <tuple>
+#include <thread>
+#include <mutex>
 
 #include "FastNoiseLite.h"
 
@@ -23,6 +25,8 @@ public:
 
 	glm::vec3 position;
 	glm::vec3 center;
+
+	void passVerticesToGPU();
 
 	Cube* getBlockAt(int x, int y, int z, int axis);
 private:
@@ -47,10 +51,18 @@ public:
 	void draw(Shader* sh, glm::vec3 playerPosition, glm::vec3 playerFront);
 
 	std::vector<Chunk> chunks;
+
+	void genSuperChunk(int superChunkX, int superChunkZ, const FastNoiseLite& noise);
 private:
-	int worldSize = 75;
-	unsigned int SSBO;
+	static const int worldSize = 110;
+
+	static const int numSuperChunks = 2;
+	static const int superChunkSize = worldSize / numSuperChunks;
+	std::thread threads[numSuperChunks * numSuperChunks];
+	std::mutex chunksMutex; // Protects access to 'chunks'
 };
+
+void genSuperChunkStatic(int superChunkX, int superChunkZ, const FastNoiseLite& noise, World* thisPrime);
 
 float vecAngle(glm::vec3 v1, glm::vec3 v2);
 float vecLength(const glm::vec3 &v1);

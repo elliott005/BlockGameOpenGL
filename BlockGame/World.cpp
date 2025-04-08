@@ -7,29 +7,40 @@ World::World() {
 
 	float heightPower = 2.0;
 
-    //std::vector<glm::vec4> chunkData;
 
-	for (int chunkX = 0; chunkX < worldSize; chunkX++) {
-		for (int chunkZ = 0; chunkZ < worldSize; chunkZ++) {
-            //chunkData.push_back(glm::vec4(chunkX * Chunk::chunkSize, 0.0f, chunkZ * Chunk::chunkSize, 0.0f));
-            chunks.push_back(Chunk(chunkX * Chunk::chunkSize, chunkZ * Chunk::chunkSize, noise));
-		}
+	for (int chunkX = 0; chunkX < worldSize; chunkX += superChunkSize) {
+		for (int chunkZ = 0; chunkZ < worldSize; chunkZ += superChunkSize) {
+            threads[chunkX / superChunkSize * numSuperChunks + chunkZ / superChunkSize] = std::thread(&genSuperChunkStatic, chunkX, chunkZ, noise, this);
+        }
 	}
-
-    /*glGenBuffers(1, &SSBO);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, chunkData.size() * sizeof(glm::vec4), &chunkData[0], GL_DYNAMIC_DRAW);
-
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, SSBO);*/
-
-    //glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+    for (int i = 0; i < numSuperChunks * numSuperChunks; i++) {
+        threads[i].join();
+    }
+    for (int i = 0; i < chunks.size(); i++) {
+        chunks[i].passVerticesToGPU();
+    }
 }
 
 void World::draw(Shader* sh, glm::vec3 playerPosition, glm::vec3 playerFront) {
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO);
     for (int i = 0; i < chunks.size(); i++) {
 		chunks[i].draw(sh, playerPosition, playerFront);
 	}
+}
+
+void World::genSuperChunk(int superChunkX, int superChunkZ, const FastNoiseLite& noise) {
+    std::vector<Chunk> localChunks;
+    for (int chunkX = 0; chunkX < superChunkSize; chunkX++) {
+        for (int chunkZ = 0; chunkZ < superChunkSize; chunkZ++) {
+            //chunkData.push_back(glm::vec4(chunkX * Chunk::chunkSize, 0.0f, chunkZ * Chunk::chunkSize, 0.0f));
+            localChunks.push_back(Chunk((chunkX + superChunkX) * Chunk::chunkSize, (chunkZ + superChunkZ) * Chunk::chunkSize, noise));
+        }
+    }
+    std::lock_guard<std::mutex> lock(chunksMutex);
+    chunks.insert(chunks.end(), localChunks.begin(), localChunks.end());
+}
+
+void genSuperChunkStatic(int superChunkX, int superChunkZ, const FastNoiseLite& noise, World* thisPrime) {
+    thisPrime->genSuperChunk(superChunkX, superChunkZ, noise);
 }
 
 Chunk::Chunk(int chunkX, int chunkZ, const FastNoiseLite& noise) {
@@ -157,22 +168,29 @@ Chunk::Chunk(int chunkX, int chunkZ, const FastNoiseLite& noise) {
     /*for (float vert : vertices) {
         printf("%f\n", vert);
     }*/
+	
 
+    /*glGenBuffers(1, &EBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(int) * indices.size(), indices.data(), GL_STATIC_DRAW);*/
+}
+
+void Chunk::passVerticesToGPU() {
     glGenVertexArrays(1, &VAO);
-	glGenBuffers(1, &VBO);
-	glBindVertexArray(VAO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glGenBuffers(1, &VBO);
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 2 + sizeof(uint8_t) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
     std::vector<float> posData = { position.x, position.z };
     /*glm::mat4 model(1.0f);
     glm::translate(model, position);*/
     glBufferSubData(GL_ARRAY_BUFFER, sizeof(uint8_t) * vertices.size(), sizeof(float) * 2, posData.data());
-	// position attribute
-	glVertexAttribPointer(0, 3, GL_UNSIGNED_BYTE, GL_FALSE, 7 * sizeof(uint8_t), (void*)0);
-	glEnableVertexAttribArray(0);
-	// texture coord attribute
-	glVertexAttribPointer(1, 2, GL_UNSIGNED_BYTE, GL_FALSE, 7 * sizeof(uint8_t), (void*)(3 * sizeof(uint8_t)));
-	glEnableVertexAttribArray(1);
+    // position attribute
+    glVertexAttribPointer(0, 3, GL_UNSIGNED_BYTE, GL_FALSE, 7 * sizeof(uint8_t), (void*)0);
+    glEnableVertexAttribArray(0);
+    // texture coord attribute
+    glVertexAttribPointer(1, 2, GL_UNSIGNED_BYTE, GL_FALSE, 7 * sizeof(uint8_t), (void*)(3 * sizeof(uint8_t)));
+    glEnableVertexAttribArray(1);
     glVertexAttribIPointer(2, 1, GL_UNSIGNED_BYTE, 7 * sizeof(uint8_t), (void*)(5 * sizeof(uint8_t)));
     glEnableVertexAttribArray(2);
     glVertexAttribIPointer(3, 1, GL_UNSIGNED_BYTE, 7 * sizeof(uint8_t), (void*)(6 * sizeof(uint8_t)));
@@ -181,11 +199,6 @@ Chunk::Chunk(int chunkX, int chunkZ, const FastNoiseLite& noise) {
     glVertexAttribPointer(4, 2, GL_FLOAT, false, sizeof(float) * 2, (void*)(sizeof(uint8_t) * vertices.size()));
     glEnableVertexAttribArray(4);
     glVertexAttribDivisor(4, 1);
-	
-
-    /*glGenBuffers(1, &EBO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(int) * indices.size(), indices.data(), GL_STATIC_DRAW);*/
 }
 
 void Chunk::draw(Shader* sh, glm::vec3 playerPosition, glm::vec3 playerFront) {
