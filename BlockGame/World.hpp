@@ -14,10 +14,11 @@ public:
 
 	void draw(Shader* sh, glm::vec3 playerPosition, glm::vec3 playerFront);
 
-	static const int chunkSize = 16;
-	static const int chunkHeight = 50;
+	static const uint16_t chunkSize = 16;
+	static const uint16_t chunkHeight = 50;
 
 	Cube cubes[chunkSize][chunkHeight][chunkSize];
+	//Cube cubes[chunkSize * chunkHeight * chunkSize];
 	std::vector<uint8_t> vertices;
 
 	glm::vec3 position;
@@ -47,7 +48,7 @@ public:
 
 	std::vector<Chunk> chunks;
 private:
-	int worldSize = 110;
+	int worldSize = 75;
 	unsigned int SSBO;
 };
 

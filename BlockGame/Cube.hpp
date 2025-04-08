@@ -16,16 +16,17 @@ public:
 
 class Cube {
 public:
-    Cube(int x, int y, int z, int p_type, bool air);
+    //Cube(int x, int y, int z, int p_type, bool air);
+    Cube(uint8_t p_type, bool air);
     Cube();
 
     //void draw(Shader sh);
 
-    glm::vec3 position;
+    //glm::vec3 position;
 
     //static const float vertices[];
     
-    int type;
+    uint8_t type;
     bool isAir;
     bool isProcessed = false;
 private:

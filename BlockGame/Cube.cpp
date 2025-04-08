@@ -1,17 +1,18 @@
 #include "Cube.hpp"
 
-Cube::Cube(int x, int y, int z, int p_type, bool air) {
-	position.x = x;
-	position.y = y;
-	position.z = z;
+//Cube::Cube(int x, int y, int z, int p_type, bool air) {
+Cube::Cube(uint8_t p_type, bool air) {
+	//position.x = x;
+	//position.y = y;
+	//position.z = z;
     type = p_type;
     isAir = air;
 }
 
 Cube::Cube() {
-    position.x = 0;
-    position.y = 0;
-    position.z = 0;
+    //position.x = 0;
+    //position.y = 0;
+    //position.z = 0;
     type = 0;
     isAir = true;
 }

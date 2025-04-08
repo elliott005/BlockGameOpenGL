@@ -48,7 +48,6 @@ Chunk::Chunk(int chunkX, int chunkZ, const FastNoiseLite& noise) {
     //std::fill(noiseArray, noiseArray + chunkSize * chunkSize, -1);
 
     //printf("%i, %i\n", noiseArray[0][0], noiseArray[1][1]);
-
     for (int blockX = 0; blockX < chunkSize; blockX++) {
         for (int y = 0; y < chunkHeight; y++) {
             for (int blockZ = 0; blockZ < chunkSize; blockZ++) {
@@ -68,11 +67,10 @@ Chunk::Chunk(int chunkX, int chunkZ, const FastNoiseLite& noise) {
                     blockType = BlockTypes::stone;
                 }
 
+                Cube* cube_at = getBlockAt(blockX, y, blockZ, 0);
+                cube_at->type = blockType;
                 if (y < noiseValue) {
-                    cubes[blockX][y][blockZ] = Cube(blockX, y, blockZ, blockType, false);
-                }
-                else {
-                    cubes[blockX][y][blockZ] = Cube(blockX, y, blockZ, blockType, true);
+                    cube_at->isAir = false;
                 }
             }
         }
@@ -97,6 +95,7 @@ Chunk::Chunk(int chunkX, int chunkZ, const FastNoiseLite& noise) {
         // Temporary 2D mask array
         //std::vector<std::vector<Cube>> mask(chunkSizeX, std::vector<Cube>(chunkSizeY, Cube(0, 0, 0, 0, true)));
         Cube* mask = new Cube[chunkSizeX * chunkSizeY];
+        Cube* maskBack = new Cube[chunkSizeX * chunkSizeY];
         /*for (int i = 0; i < chunkSizeX * chunkSizeY; i++) {
             mask[i] = Cube();
         }*/
@@ -107,6 +106,10 @@ Chunk::Chunk(int chunkX, int chunkZ, const FastNoiseLite& noise) {
             for (int i = 0; i < chunkSizeX * chunkSizeY; i++) {
                 mask[i].isProcessed = true;
             }
+            for (int i = 0; i < chunkSizeX * chunkSizeY; i++) {
+                maskBack[i].isProcessed = true;
+            }
+
             // Fill mask with visible faces
             for (int i = 0; i < chunkSizeX; i++) {
                 for (int j = 0; j < chunkSizeY; j++) {
@@ -116,7 +119,7 @@ Chunk::Chunk(int chunkX, int chunkZ, const FastNoiseLite& noise) {
                     if (d < chunkSizeZ - 1) {
                         Cube* next = getBlockAt(i, j, d + 1, axis);
                         // Only store if the face is visible
-                        if (not current->isAir != not next->isAir) {
+                        if (current->isAir != next->isAir) {
                             mask[i % chunkSizeX * chunkSizeY + j] = not current->isAir ? *current : *next;
                             mask[i % chunkSizeX * chunkSizeY + j].isProcessed = false;
                         }
@@ -124,6 +127,19 @@ Chunk::Chunk(int chunkX, int chunkZ, const FastNoiseLite& noise) {
                     else if (not current->isAir) {
                         mask[i % chunkSizeX * chunkSizeY + j] = *current;
                         mask[i % chunkSizeX * chunkSizeY + j].isProcessed = false;
+                    }
+
+                    if (d > 0) {
+                        Cube* next = getBlockAt(i, j, d - 1, axis);
+                        // Only store if the face is visible
+                        if (current->isAir != next->isAir) {
+                            maskBack[i % chunkSizeX * chunkSizeY + j] = not current->isAir ? *current : *next;
+                            maskBack[i % chunkSizeX * chunkSizeY + j].isProcessed = false;
+                        }
+                    }
+                    else if (not current->isAir) {
+                        maskBack[i % chunkSizeX * chunkSizeY + j] = *current;
+                        maskBack[i % chunkSizeX * chunkSizeY + j].isProcessed = false;
                     }
                 }
             }
@@ -132,32 +148,10 @@ Chunk::Chunk(int chunkX, int chunkZ, const FastNoiseLite& noise) {
 
             // --------------------------------------------------------------------------------------------
 
-            for (int i = 0; i < chunkSizeX * chunkSizeY; i++) {
-                mask[i].isProcessed = true;
-            }
-
-            // Fill mask with visible faces
-            for (int i = 0; i < chunkSizeX; i++) {
-                for (int j = 0; j < chunkSizeY; j++) {
-                    Cube* current = getBlockAt(i, j, d, axis);
-                    if (d > 0) {
-                        Cube* next = getBlockAt(i, j, d - 1, axis);
-                        // Only store if the face is visible
-                        if (not current->isAir != not next->isAir) {
-                            mask[i % chunkSizeX * chunkSizeY + j] = not current->isAir ? *current : *next;
-                            mask[i % chunkSizeX * chunkSizeY + j].isProcessed = false;
-                        }
-                    }
-                    else if (not current->isAir) {
-                        mask[i % chunkSizeX * chunkSizeY + j] = *current;
-                        mask[i % chunkSizeX * chunkSizeY + j].isProcessed = false;
-                    }
-                }
-            }
-
-            greedyMeshing(mask, d, axis, 0, chunkSizeX, chunkSizeY, chunkSizeZ);
+            greedyMeshing(maskBack, d, axis, 0, chunkSizeX, chunkSizeY, chunkSizeZ);
         }
         delete[] mask;
+        delete[] maskBack;
     }
     //printf("size: %i\n", vertices.size());
     /*for (float vert : vertices) {
@@ -213,16 +207,19 @@ Cube* Chunk::getBlockAt(int x, int y, int z, int axis) {
     if (axis == 0) { // X-axis
         if (0 <= x and x < chunkSize and 0 <= y and y < chunkHeight and 0 <= z and z < chunkSize)
             return &cubes[x][y][z];
+            //return &cubes[x * (chunkSize * chunkHeight) + y * chunkSize + z];
         return &airCube;
     }
     else if (axis == 1) { // Y-axis
         if (0 <= x and x < chunkSize and 0 <= z and z < chunkHeight and 0 <= y and y < chunkSize)
             return &cubes[x][z][y];
+            //return &cubes[x * (chunkSize * chunkHeight) + z * chunkSize + y];
         return &airCube;
     }
     else { // Z-axis
         if (0 <= z and z < chunkSize and 0 <= y and y < chunkHeight and 0 <= x and x < chunkSize)
             return &cubes[z][y][x];
+            //return &cubes[z * (chunkSize * chunkHeight) + y * chunkSize + x];
         return &airCube;
     }
 }
@@ -338,7 +335,7 @@ void Chunk::greedyMeshing(Cube* mask, int d, int axis, int back, int chunkSizeX,
     // Apply greedy merging on the mask
     for (int i = 0; i < chunkSizeX; i++) {
         for (int j = 0; j < chunkSizeY; j++) {
-            Cube* currentCube = &mask[i % chunkSizeX * chunkSizeY + j];
+            Cube* currentCube = &mask[i * chunkSizeY + j];
             if (currentCube->isProcessed or currentCube->isAir) continue;
 
             int material = currentCube->type;
